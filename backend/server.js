@@ -87,3 +87,45 @@ app.get("/logs", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+
+app.post("/logs", async (req, res) => {
+  try {
+    const { action, details } = req.body;
+
+    await addLog(
+      action || "CUSTOM",
+      details || "Manual log entry"
+    );
+
+    res.json({ message: "Log entry added" });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ================= ADD CRIMINAL ================= */
+
+app.post("/criminals", async (req, res) => {
+  try {
+    const { name, alias, crimeDescription, threatLevel } = req.body;
+
+    const result = await pool.query(
+      `INSERT INTO criminals
+       (name, alias, crime_description, threat_level, case_status, captured, terminated)
+       VALUES ($1, $2, $3, $4, 'open', false, false)
+       RETURNING *`,
+      [name, alias, crimeDescription, threatLevel]
+    );
+
+    await addLog(
+      "ADD",
+      `${name}${alias ? ` (${alias})` : ""} added to surveillance`
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
