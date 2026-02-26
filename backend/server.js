@@ -129,3 +129,61 @@ app.post("/criminals", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+/* ================= TOGGLE CAPTURE ================= */
+
+app.put("/criminals/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const result = await pool.query(
+      `UPDATE criminals
+       SET captured = NOT captured
+       WHERE id=$1
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ message: "Criminal not found" });
+
+    const criminal = result.rows[0];
+
+    await addLog(
+      "STATUS",
+      `${criminal.name} ${criminal.captured ? "captured" : "released"}`
+    );
+
+    res.json(criminal);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ================= TERMINATE ================= */
+
+app.put("/criminals/:id/terminate", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const result = await pool.query(
+      `UPDATE criminals
+       SET terminated=true, case_status='closed'
+       WHERE id=$1
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ message: "Criminal not found" });
+
+    await addLog(
+      "TERMINATE",
+      `${result.rows[0].name} eliminated`
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
