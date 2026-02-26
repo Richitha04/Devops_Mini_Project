@@ -187,3 +187,80 @@ app.put("/criminals/:id/terminate", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+/* ================= ADD SIGHTING ================= */
+
+app.post("/criminals/:id/sightings", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { location, note, date } = req.body;
+
+    await pool.query(
+      `INSERT INTO sightings
+       (criminal_id, location, date, note)
+       VALUES ($1, $2, $3, $4)`,
+      [id, location, date || new Date(), note || ""]
+    );
+
+    await addLog("SIGHTING", `Criminal spotted at ${location}`);
+
+    res.json({ message: "Sighting added" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ================= GET SIGHTINGS ================= */
+
+app.get("/criminals/:id/sightings", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const result = await pool.query(
+      `SELECT *
+       FROM sightings
+       WHERE criminal_id=$1
+       ORDER BY date DESC`,
+      [id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ================= UPDATE THREAT ================= */
+
+app.put("/criminals/:id/threat", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { threatLevel } = req.body;
+
+    const result = await pool.query(
+      `UPDATE criminals
+       SET threat_level=$1
+       WHERE id=$2
+       RETURNING *`,
+      [threatLevel, id]
+    );
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ message: "Criminal not found" });
+
+    await addLog(
+      "THREAT",
+      `${result.rows[0].name} threat level changed to ${threatLevel}`
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ================= START SERVER ================= */
+
+app.listen(8000, "0.0.0.0", () => {
+  console.log("🦇 Gotham Server Running on port 8000");
+});
